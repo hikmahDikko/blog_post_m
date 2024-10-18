@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "544152994188",
+    "project_id": "pushnoti-395ec",
+    "storage_bucket": "pushnoti-395ec.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544152994188:android:4aa51fd8eb3ed74a7316a9",
+        "android_client_info": {
+          "package_name": "io.cordova.hellocordova"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiaBhHGeK38ZGpn9_1w-1SI_F6iHCFpj0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

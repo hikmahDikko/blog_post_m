@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display and Input Posts</title>
+    <style>
+        #posts-container {
+            margin-top: 20px;
+        }
+
+        .post {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .post h2 {
+            margin-top: 0;
+        }
+
+        .post p {
+            margin-bottom: 0;
+        }
+
+        .delete-button {
+            position: relative;
+            top: 10px;
+            right: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .update-button {
+            position: relative;
+            top: 10px;
+            right: 10px;
+            background-color: #3f0fee;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .cancel-button {
+            position: relative;
+            top: 10px;
+            right: 10px;
+            background-color: #8a7db9;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        form {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="posts-container"></div>
+
+    <!-- Update Post Form -->
+    <div id="updatePostForm" style="display: none;">
+        <h2>Update Post</h2>
+        <form id="form">
+            <label for="title">Title:</label><br>
+            <input type="text" id="title" name="title" required>
+            <br>
+            <label for="content">Content:</label><br>
+            <textarea id="content" name="content" required style="width: 250px; height: 100px;"></textarea>
+            <br>
+            <button type="submit" class="update-button">Update Post</button>
+            <button type="button" onclick="hideUpdateForm()" class="cancel-button">Cancel</button>
+        </form>
+    </div>
+
+    <form id="post-form">
+        <label for="title">Title:</label><br>
+        <input type="text" id="title" name="title" required><br>
+        <label for="content">Content:</label><br>
+        <textarea id="content" name="content" required></textarea><br><br>
+        <button type="submit">Add Post</button>
+    </form>
+
+    <script>
+        const postsContainer = document.getElementById('posts-container');
+        const apiUrl = 'https://api.jsonbin.io/v3/b/670e55ddacd3cb34a8975795';
+        const apiKey = '$2a$10$gVlVtEzFqEKYoMls5oizN.iCWE9UeIyEUno1.I75.TGbg0.lTBYKe'; // Replace with your actual API key
+
+        function fetchAndDisplayPosts() {
+            fetch(`${apiUrl}/latest`, {
+                headers: {
+                    'X-Master-Key': apiKey
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Fetched data:', data); // Add logging to debug
+                    postsContainer.innerHTML = ''; // Clear previous posts
+
+                    // Check if the nested record field exists
+                    if (data.record && data.record.record && Array.isArray(data.record.record.posts)) {
+                        data.record.record.posts.forEach(post => {
+                            displayPost(post);
+                        });
+                    } else {
+                        console.error('Invalid data structure:', JSON.stringify(data, null, 2));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching posts:', error);
+                });
+        }
+
+        function displayPost(post) {
+            const postElement = document.createElement('div');
+            postElement.classList.add('post');
+            postElement.setAttribute('data-id', post.id); // Set data-id for easier access
+            postElement.innerHTML = `
+                <h2>${post.title}</h2>
+                <p>${post.content}</p>
+                <button class="update-button">Update</button>
+                <button class="delete-button">Delete</button>
+            `;
+            postsContainer.appendChild(postElement);
+
+            // Add event listener for delete button
+            postElement.querySelector('.delete-button').addEventListener('click', function () {
+                deletePost(post.id);
+            });
+
+            postElement.querySelector('.update-button').addEventListener('click', function () {
+                showUpdateForm(post);
+            });
+        }
+
+        function updatePost(postId, updatedData) {
+            fetch(`${apiUrl}/latest`, {
+                headers: {
+                    'X-Master-Key': apiKey
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Find the post to update
+                    const posts = data.record.record.posts;
+                    const postIndex = posts.findIndex(post => post.id === postId);
+
+                    if (postIndex === -1) {
+                        throw new Error('Post not found');
+                    }
+
+                    // Update the post with new data
+                    const updatedPosts = [...posts];
+                    updatedPosts[postIndex] = { ...updatedPosts[postIndex], ...updatedData };
+
+                    // Send PUT request to update the posts data
+                    return fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': apiKey
+                        },
+                        body: JSON.stringify({ record: { posts: updatedPosts } }) // Update posts
+                    });
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update post');
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    // Fetch and display updated list of posts
+                    fetchAndDisplayPosts();
+                })
+                .catch(error => {
+                    console.error('Error updating post:', error);
+                });
+        }
+
+        let currentPostId; 
+
+         function showUpdateForm(post) {
+            currentPostId = post.id; 
+            document.getElementById('title').value = post.title; 
+            document.getElementById('content').value = post.content; 
+            document.getElementById('post-form').style.display = 'none'; 
+            document.getElementById('updatePostForm').style.display = 'block'; 
+        }
+
+        function hideUpdateForm() {
+            document.getElementById('post-form').style.display = 'block'; 
+            document.getElementById('updatePostForm').style.display = 'none'; 
+        }
+
+       document.getElementById('form').onsubmit = function (event) {
+            event.preventDefault(); 
+
+            const updatedData = {
+                title: document.getElementById('title').value,
+                content: document.getElementById('content').value
+            };
+
+            updatePost(currentPostId, updatedData); 
+            hideUpdateForm(); 
+        };
+
+
+        function deletePost(postId) {
+            fetch(`${apiUrl}/latest`, {
+                headers: {
+                    'X-Master-Key': apiKey
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Filter out the post to be deleted
+                    const updatedPosts = data.record.record.posts.filter(post => post.id !== postId);
+
+                    // Send PUT request to update the posts data
+                    return fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': apiKey
+                        },
+                        body: JSON.stringify({ record: { posts: updatedPosts } }) // Update posts
+                    });
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to delete post');
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    // Fetch and display updated list of posts
+                    fetchAndDisplayPosts();
+                })
+                .catch(error => {
+                    console.error('Error deleting post:', error);
+                });
+        }
+
+        // Fetch and display posts on page load
+        fetchAndDisplayPosts();
+
+        // Handle form submission
+        document.getElementById('post-form').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const title = formData.get('title');
+            const content = formData.get('content');
+
+            // Send GET request to get existing posts
+            fetch(`${apiUrl}/latest`, {
+                headers: {
+                    'X-Master-Key': apiKey
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Append the new post to the existing posts
+                    const newPost = {
+                        id: (data.record.record.posts.length + 1).toString(), // Generate ID based on current length
+                        title: title,
+                        content: content
+                    };
+                    data.record.record.posts.push(newPost);
+
+                    // Send PUT request to update the posts data
+                    return fetch(apiUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': apiKey
+                        },
+                        body: JSON.stringify({ record: data.record.record }) // Wrap posts in record
+                    });
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to add post');
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    // Fetch and display updated list of posts
+                    fetchAndDisplayPosts();
+                    // Clear form fields
+                    document.getElementById('title').value = '';
+                    document.getElementById('content').value = '';
+                })
+                .catch(error => {
+                    console.error('Error adding post:', error);
+                });
+        });
+
+        FCMPlugin.getToken(function(token) {
+        console.log("FCM Token: " + token);
+        // You can store this token or send it to your server for further use
+    }, function(err) {
+        console.error("Error retrieving FCM token: " + err);
+    });
+
+    // Handle incoming notifications
+    FCMPlugin.onNotification(function(data) {
+        console.log("Notification data: " + JSON.stringify(data));
+
+        if (data.wasTapped) {
+            // Notification received in background
+            alert("Background Notification: " + JSON.stringify(data));
+        } else {
+            // Notification received in foreground
+            alert("Foreground Notification: " + JSON.stringify(data));
+        }
+    }, function(msg) {
+        console.log("Notification callback success: " + msg);
+    }, function(err) {
+        console.error("Notification callback error: " + err);
+    });
+    </script>
+</body>
+
+</html>
